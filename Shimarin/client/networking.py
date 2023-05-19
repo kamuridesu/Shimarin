@@ -22,8 +22,6 @@ async def send_get_request(session: aiohttp.ClientSession, *args, **kwargs) -> R
     response: typing.Union[Response, None] = None
     async with session.request("GET", *args, **kwargs) as resp:
         response = Response(resp.status, await resp.read())
-        if response.status != 200:
-            print(response.content)
     return response
 
 
