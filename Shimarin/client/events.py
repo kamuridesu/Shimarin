@@ -89,10 +89,10 @@ class EventPolling:
         if self.session:
             await self.session.__aexit__(exc_type, exc_val, tb)
 
-    async def start(self, polling_interval: int = 1, fetch: int = 10):
+    async def start(self, polling_interval: int = 1, fetch: int = 10, custom_headers: dict = {}):
         self.is_polling = True
         while self.is_polling:
-            events: Response = await send_get_request(self.session, f"{config.SERVER_ENDPOINT}/events?fetch={fetch}")
+            events: Response = await send_get_request(self.session, f"{config.SERVER_ENDPOINT}/events?fetch={fetch}", headers=custom_headers)
             if events.status == 200:
                 event_json = await events.json()
                 for event in event_json:
