@@ -15,6 +15,7 @@ class Event:
         self.__answer = ""
         self.__creation_date = datetime.now()
         self.done = False
+        self.delete = False  # this config will be used later when callbacks are merged into emitter
 
     @staticmethod
     def new(event_type: str, payload: str = None, callback: Callable |  None = None) -> 'Event':

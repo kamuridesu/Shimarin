@@ -1,11 +1,15 @@
 import aiohttp
 import asyncio
 import json
+import logging
 
 from typing import Callable, Any
 
 from .config import config
 from .networking import send_get_request, Response
+
+
+logger = logging.getLogger("Shimarin")
 
 
 class Event:
@@ -89,21 +93,28 @@ class EventPolling:
         if self.session:
             await self.session.__aexit__(exc_type, exc_val, tb)
 
-    async def start(self, polling_interval: int = 1, fetch: int = 10, custom_headers: dict = {}):
+    async def start(self, polling_interval: int = 1, fetch: int = 10, custom_headers: dict = {}, server_endpoint: str = config.SERVER_ENDPOINT, retries: int = 5):
         self.is_polling = True
         while self.is_polling:
-            events: Response = await send_get_request(self.session, f"{config.SERVER_ENDPOINT}/events?fetch={fetch}", headers=custom_headers)
-            if events.status == 200:
-                event_json = await events.json()
-                for event in event_json:
-                    if event_json:
-                        event = Event.new(event, self.session)
-                        await self.__task_manager(event)
+            for _ in range(retries):
+                try:
+                    events: Response = await send_get_request(self.session, f"{server_endpoint}/events?fetch={fetch}", headers=custom_headers)
+                    if events.status == 200:
+                        event_json = await events.json()
+                        for event in event_json:
+                            if event_json:
+                                event = Event.new(event, self.session)
+                                await self.__task_manager(event)
+                        break
+                    raise aiohttp.ServerConnectionError
+                except (aiohttp.ClientError, aiohttp.ServerTimeoutError, aiohttp.ServerDisconnectedError, aiohttp.ServerConnectionError, aiohttp.ClientConnectionError):
+                    logger.warning(f"Error connecting to {server_endpoint}! Retrying...")
+                    await asyncio.sleep(1)
             await asyncio.sleep(polling_interval)
 
     async def __task_manager(self, event: Event):
         task = asyncio.create_task(self.events_handlers.handle(event))
-        self.running_tasks.add(task) 
+        self.running_tasks.add(task)
         task.add_done_callback(lambda t: self.running_tasks.remove(t))
 
     async def stop(self):

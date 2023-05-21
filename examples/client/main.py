@@ -12,7 +12,7 @@ async def update(event: events.Event):
 
 async def main():
     async with events.EventPolling(handlers) as poller:
-        await poller.start(0.1)
+        await poller.start(0.1, server_endpoint="http://localhost:2222")
 
 
 if __name__ == "__main__":
