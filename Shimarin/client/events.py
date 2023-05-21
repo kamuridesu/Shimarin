@@ -13,22 +13,23 @@ logger = logging.getLogger("Shimarin")
 
 
 class Event:
-    def __init__(self, event_type: str, identifier: str, payload: str | None, session: aiohttp.ClientSession) -> None:
+    def __init__(self, event_type: str, identifier: str, payload: str | None, session: aiohttp.ClientSession, server_endpoint: str = config.SERVER_ENDPOINT) -> None:
         self.event_type = event_type
         self.payload = payload
         self.identifier = identifier
         self.__session = session
+        self.server_endpoint = server_endpoint
 
     @staticmethod
-    def new(event_data: dict[str, str], session: aiohttp.ClientSession | None) -> 'Event':
-        return Event(event_data['event_type'], event_data['identifier'], event_data['payload'], session)
+    def new(event_data: dict[str, str], session: aiohttp.ClientSession | None, server_endpoint: str = config.SERVER_ENDPOINT) -> 'Event':
+        return Event(event_data['event_type'], event_data['identifier'], event_data['payload'], session, server_endpoint)
     
     async def reply(self, payload: Any):
         data = {
             "identifier": str(self.identifier),
             "payload": json.dumps(payload)
         }
-        await send_get_request(self.__session, f"{config.SERVER_ENDPOINT}/callback", json=data)
+        await send_get_request(self.__session, f"{self.server_endpoint}/callback", json=data)
     
     def __str__(self) -> str:
         return f"Event: {self.event_type}, Identifier: {self.identifier}, Payload: {self.payload}"
@@ -103,7 +104,7 @@ class EventPolling:
                         event_json = await events.json()
                         for event in event_json:
                             if event_json:
-                                event = Event.new(event, self.session)
+                                event = Event.new(event, self.session, server_endpoint)
                                 await self.__task_manager(event)
                         break
                     raise aiohttp.ServerConnectionError
