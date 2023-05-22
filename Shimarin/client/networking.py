@@ -25,7 +25,9 @@ async def send_get_request(session: aiohttp.ClientSession, *args, **kwargs) -> R
     return response
 
 
-async def send_post_request(session: aiohttp.ClientSession, *args, **kwargs) -> Response:
+async def send_post_request(
+    session: aiohttp.ClientSession, *args, **kwargs
+) -> Response:
     """
     Function to send a rest request and return the Response
     :session A client session object from aiohttp

@@ -1,11 +1,11 @@
 import asyncio
 import json
 from Shimarin.server import events
+from Shimarin.server.exceptions import EventAnswerTimeoutError
 from flask import Flask, request
 
 
 emitter = events.EventEmitter()
-callbacks = events.CallbacksHandlers()
 
 
 app = Flask("server")
@@ -13,7 +13,7 @@ app = Flask("server")
 
 @app.route("/events", methods=["GET"])
 async def events_route():
-    fetch = request.args.get('fetch')
+    fetch = request.args.get("fetch")
     events_to_send = 1
     if fetch:
         events_to_send = int(fetch)
@@ -21,7 +21,6 @@ async def events_route():
     for _ in range(events_to_send):
         last_ev = await emitter.fetch_event()
         if last_ev.event_type:
-            await callbacks.register(last_ev)
             events.append(last_ev.json())
     return events
 
@@ -30,17 +29,21 @@ async def events_route():
 async def reply_route():
     data = request.get_json(silent=True)
     if data:
-        identifier = data['identifier']
-        payload = data['payload']
-        await callbacks.handle(identifier, payload)
+        identifier = data["identifier"]
+        payload = data["payload"]
+        print("triggering")
+        await emitter.handle(identifier, payload)
     return {"ok": True}
 
 
 async def handle_test(params: dict = {}):
-    event = events.Event.new("update", json.dumps(params), json.loads)
+    event = events.Event("update", json.dumps(params), json.loads)
     await emitter.send(event)
-    answer = await event.get_answer()
-    return answer
+    print("waiting for answer")
+    try:
+        return await event.get_answer(60)  # 1 minute timeout
+    except EventAnswerTimeoutError:
+        return "fail"
 
 
 @app.route("/test", methods=["GET"])
@@ -48,8 +51,7 @@ async def test_route():
     args = request.get_json(force=True, silent=True)
     if args is None:
         args = {}
-    return (await handle_test(args))
- 
+    return await handle_test(args)
 
 
 if __name__ == "__main__":
