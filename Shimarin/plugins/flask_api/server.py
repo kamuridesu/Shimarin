@@ -17,13 +17,13 @@ def login():
                 return {"ok": False, "message": "Invalid credentials!"}, 401
         else:
             return {"ok": False, "message": "Invalid credentials!"}, 401
-    return {"ok": True, "message": "Authentication disabled"}
+    return {"ok": True, "message": "Authentication disabled"}, 200
 
 
 @app.route("/events", methods=["GET"])
 async def events_route():
     r = login()
-    if (r['ok'] is False):
+    if (r[0]['ok'] is False):
         return r
     fetch = request.args.get("fetch")
     events_to_send = 1
@@ -40,7 +40,7 @@ async def events_route():
 @app.route("/callback")
 async def reply_route():
     r = login()
-    if (r['ok'] is False):
+    if (r[0]['ok'] is False):
         return r
     data = request.get_json(silent=True)
     if data:
