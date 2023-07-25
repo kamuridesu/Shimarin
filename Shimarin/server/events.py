@@ -82,6 +82,12 @@ class EventEmitter:
         self.handlers = CallbacksHandlers()
         self.max_age_seconds = max_age_seconds
 
+    async def get(self, event_id: str, default: Any | None = None) -> Event:
+        for event in self.events:
+            if event.identifier == event_id:
+                return event
+        return default
+
     async def clean_old_items(self):
         for event in self.events.copy():
             if event.done or ((event.age >= self.max_age_seconds) if (self.max_age_seconds > 0) else False):
