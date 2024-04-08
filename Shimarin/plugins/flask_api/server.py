@@ -7,6 +7,8 @@ from flask import Flask, request
 emitter = events.EventEmitter()
 app = Flask("server")
 
+CONTEXT_PATH = os.getenv("CONTEXT_PATH", "")
+
 
 def login():
     if ((USERNAME := os.getenv("SHIMARIN_USERNAME") and (PASSWORD := os.getenv("SHIMARIN_PASSWORD")))):
@@ -20,7 +22,7 @@ def login():
     return {"ok": True, "message": "Authentication disabled"}, 200
 
 
-@app.route("/events", methods=["GET"])
+@app.route(CONTEXT_PATH + "/events", methods=["GET"])
 async def events_route():
     r = login()
     if (r[0]['ok'] is False):
@@ -37,7 +39,7 @@ async def events_route():
     return events
 
 
-@app.route("/callback")
+@app.route(CONTEXT_PATH + "/callback")
 async def reply_route():
     r = login()
     if (r[0]['ok'] is False):
