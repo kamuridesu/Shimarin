@@ -1,6 +1,7 @@
 import asyncio
+import sys
+sys.path.insert(0, "/home/kamuri/Documents/Personal/shimarin")
 from Shimarin.client import events
-
 
 handlers = events.EventsHandlers()
 

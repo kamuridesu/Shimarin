@@ -1,114 +1,75 @@
 import asyncio
-import inspect
-import uuid
+from typing import Any
 from datetime import datetime
-from typing import Callable, Any
 
 from .exceptions import EventAnswerTimeoutError
 
-
-class Event:
-    def __init__(
-        self, event_type: str, payload: str = None, callback: Callable | None = None
-    ):
-        self.event_type = event_type
-        self.payload = payload
-        self.callback = callback
-        self.identifier = str(uuid.uuid1())
-        self.answered = True if callback is None else False
-        self.__answer = ""
-        self.__creation_date = datetime.now()
-        self.done = False
-        self.delete = False  # this config will be used later when callbacks are merged into emitter
-
-    @staticmethod
-    def new(
-        event_type: str, payload: str = None, callback: Callable | None = None
-    ) -> "Event":
-        return Event(event_type, payload, callback)
-
-    @property
-    def age(self):
-        return (datetime.now() - self.__creation_date).total_seconds()
-
-    @property
-    def answer(self):
-        self.done = True
-        return self.__answer
-
-    async def get_answer(self, timeout: float = 0):
-        start = datetime.now()
-        while self.answered is False:
-            await asyncio.sleep(0)
-            if (datetime.now() - start).total_seconds() >= timeout:
-                raise EventAnswerTimeoutError
-        return self.answer
-
-    def json(self) -> dict:
-        return {
-            "event_type": self.event_type,
-            "payload": self.payload,
-            "identifier": self.identifier,
-        }
-
-    def __repr__(self):
-        return self.json().__str__()
-
-    async def trigger(self, payload: Any):
-        self.answered = True
-        if inspect.iscoroutinefunction(self.callback):
-            self.__answer = await self.callback(payload)
-        else:
-            self.__answer = self.callback(payload)
-        return self.__answer
-
-
-class CallbacksHandlers:
-    def __init__(self):
-        self.events: list[Event] = []
-
-    async def register(self, event: Event):
-        self.events.append(event)
-
-    async def handle(self, unique_identifier: str, payload: Any):
-        for event in self.events:
-            if event.identifier == unique_identifier:
-                return await event.trigger(payload)
+from .event import Event
+from ..plugins.middleware.persistence import PersistenceMiddleware
 
 
 class EventEmitter:
-    def __init__(self, max_age_seconds: float = 0):
+    def __init__(self, max_age_seconds: float = 0, persistence_middleware: PersistenceMiddleware | None = None):
         self.events: list[Event] = []
-        self.handlers = CallbacksHandlers()
         self.max_age_seconds = max_age_seconds
+        self.persistence_middleware = persistence_middleware
 
-    async def get(self, event_id: str, default: Any | None = None) -> Event:
-        for event in self.events:
-            if event.identifier == event_id:
-                return event
-        return default
+    async def get_answer(self, event_id: str, default: Any | None = None, timeout = 60) -> Event:
+        ev = default
+        start = datetime.now()
+        while True:
+            await asyncio.sleep(0)
+            if (datetime.now() - start).total_seconds() >= timeout:
+                raise EventAnswerTimeoutError
+            if (self.persistence_middleware is not None):
+                event = self.persistence_middleware.get(event_id)
+                if event:
+                    ev = event
+            else:
+                for event in self.events:
+                    if event.identifier == event_id:
+                        ev = event
+            if ev != None and ev.answered:
+                return ev.answer
+            if ev is None:
+                return
 
     async def clean_old_items(self):
-        for event in self.events.copy():
-            if event.done or ((event.age >= self.max_age_seconds) if (self.max_age_seconds > 0) else False):
+        for event in [x for x in self.events if x.status in ['done', 'failed']]:
+            if ((event.age >= self.max_age_seconds) if (self.max_age_seconds > 0) else False):
                 self.events.remove(event)
-        for event in self.handlers.events.copy():
-            if event.done or ((event.age >= self.max_age_seconds) if (self.max_age_seconds > 0) else False):
-                self.handlers.events.remove(event)
+        if self.persistence_middleware:
+            self.persistence_middleware.prune_finished()
 
     async def fetch_event(self, last: bool = True) -> Event:
         await self.clean_old_items()
+        item = None
         try:
-            item = self.events.pop(0 if not last else -1)
-            await self.handlers.register(item)
+            if self.persistence_middleware is not None:
+                item = self.persistence_middleware.fetch(last)
+            else:
+                item: Event = [x for x in self.events if x.status == 'waiting'].pop(0 if not last else -1)
+            if item is not None:
+                item.status = 'delivered'
             return item
         except IndexError:
-            return Event(None, None, None)
+            return item
 
     async def send(self, event: Event) -> None:
         await self.clean_old_items()
+        if (self.persistence_middleware is not None):
+            return self.persistence_middleware.register(event)
         self.events.append(event)
 
     async def handle(self, unique_identifier: str, payload: Any):
         await self.clean_old_items()
-        return await self.handlers.handle(unique_identifier, payload)
+        if (self.persistence_middleware is not None):
+            ev = self.persistence_middleware.get(unique_identifier)
+            if ev:
+                response = await ev.trigger(payload)
+                self.persistence_middleware.update_event_status(ev.identifier, 'done', ev)
+                return response
+        else:
+            for event in self.events:
+                if event.identifier == unique_identifier:
+                    return await event.trigger(payload)

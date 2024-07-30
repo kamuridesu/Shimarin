@@ -1,11 +1,8 @@
 import os
 
-from Shimarin.server import events
-from flask import Flask, request
+from ...server import events
+from flask import Flask, request, Blueprint
 
-
-emitter = events.EventEmitter()
-app = Flask("server")
 
 CONTEXT_PATH = os.getenv("CONTEXT_PATH", "")
 
@@ -22,36 +19,43 @@ def login():
     return {"ok": True, "message": "Authentication disabled"}, 200
 
 
-@app.route(CONTEXT_PATH + "/events", methods=["GET"])
-async def events_route():
-    r = login()
-    if (r[0]['ok'] is False):
-        return r
-    fetch = request.args.get("fetch")
-    events_to_send = 1
-    if fetch:
-        events_to_send = int(fetch)
-    events = []
-    for _ in range(events_to_send):
-        last_ev = await emitter.fetch_event()
-        if last_ev.event_type:
-            events.append(last_ev.json())
-    return events
+class FlaskApp:
+    blueprint = Blueprint("ShimaServer", __name__)
 
+    def __init__(self, emitter: events.EventEmitter):
+        self.emitter = emitter
+        self.blueprint.add_url_rule(CONTEXT_PATH + "/events", None, self.events_route, methods=["GET"])
+        self.blueprint.add_url_rule(CONTEXT_PATH + "/callback", None, self.reply_route, methods=["GET"])
 
-@app.route(CONTEXT_PATH + "/callback")
-async def reply_route():
-    r = login()
-    if (r[0]['ok'] is False):
-        return r
-    data = request.get_json(silent=True)
-    if data:
-        identifier = data["identifier"]
-        payload = data["payload"]
-        print("triggering")
-        await emitter.handle(identifier, payload)
-    return {"ok": True}
+    async def events_route(self):
+        r = login()
+        if (r[0]['ok'] is False):
+            return r
+        fetch = request.args.get("fetch")
+        events_to_send = 1
+        if fetch:
+            events_to_send = int(fetch)
+        events = []
+        for _ in range(events_to_send):
+            last_ev = await self.emitter.fetch_event()
+            if last_ev:
+                events.append(last_ev.json())
+        return events
+    
+    async def reply_route(self):
+        r = login()
+        if (r[0]['ok'] is False):
+            return r
+        data = request.get_json(silent=True)
+        if data:
+            identifier = data["identifier"]
+            payload = data["payload"]
+            await self.emitter.handle(identifier, payload)
+        return {"ok": True}
 
 
 if __name__ == "__main__":
+    app = Flask("server")
+    fa = FlaskApp(events.EventEmitter())
+    app.register_blueprint(fa.blueprint)
     app.run(debug=True, host="0.0.0.0", port=2222)

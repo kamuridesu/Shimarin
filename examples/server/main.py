@@ -1,9 +1,19 @@
 import json
 
-from Shimarin.plugins.flask_api import app, emitter
-from Shimarin.server.events import Event, EventAnswerTimeoutError
+import sys
+sys.path.insert(0, "/home/kamuri/Documents/Personal/shimarin")
 
-from flask import request
+from Shimarin.plugins.flask_api import FlaskApp
+from Shimarin.server.events import Event, EventEmitter
+from Shimarin.server.exceptions import EventAnswerTimeoutError
+from Shimarin.plugins.middleware.sqlite_middleware import SQLitePersistenceMiddleware
+
+from flask import request, Flask
+
+
+app = Flask("server")
+emitter = EventEmitter(persistence_middleware=SQLitePersistenceMiddleware("test.db"))
+# emitter =EventEmitter()
 
 
 async def handle_test(params: dict = {}):
@@ -11,7 +21,7 @@ async def handle_test(params: dict = {}):
     await emitter.send(event)
     print("waiting for answer")
     try:
-        return await event.get_answer(60)  # 1 minute timeout
+        return (await emitter.get_answer(event.identifier, timeout = 60))  # 1 minute timeout
     except EventAnswerTimeoutError:
         return "fail"
 
@@ -25,4 +35,7 @@ async def test_route():
 
 
 if __name__ == "__main__":
+    emitter_app = FlaskApp(emitter)
+    app.register_blueprint(emitter_app.blueprint)
+    app.run(debug=True, host="0.0.0.0", port=2222)
     app.run(debug=True, host="0.0.0.0", port=2222)

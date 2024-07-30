@@ -1,4 +1,4 @@
-from .server import app, emitter, login, CONTEXT_PATH
+from .server import login, CONTEXT_PATH, FlaskApp
 
 
-__all__ = ['app', 'emitter', "login", "CONTEXT_PATH"]
+__all__ = ["login", "CONTEXT_PATH", "FlaskApp"]
