@@ -19,13 +19,12 @@ def login():
     return {"ok": True, "message": "Authentication disabled"}, 200
 
 
-class FlaskApp:
-    blueprint = Blueprint("ShimaServer", __name__)
-
+class ShimaApp(Blueprint):
     def __init__(self, emitter: events.EventEmitter):
+        super().__init__("ShimaServer", __name__)
         self.emitter = emitter
-        self.blueprint.add_url_rule(CONTEXT_PATH + "/events", None, self.events_route, methods=["GET"])
-        self.blueprint.add_url_rule(CONTEXT_PATH + "/callback", None, self.reply_route, methods=["GET"])
+        self.add_url_rule(CONTEXT_PATH + "/events", None, self.events_route, methods=["GET"])
+        self.add_url_rule(CONTEXT_PATH + "/callback", None, self.reply_route, methods=["GET"])
 
     async def events_route(self):
         r = login()
@@ -56,6 +55,6 @@ class FlaskApp:
 
 if __name__ == "__main__":
     app = Flask("server")
-    fa = FlaskApp(events.EventEmitter())
-    app.register_blueprint(fa.blueprint)
+    fa = ShimaApp(events.EventEmitter())
+    app.register_blueprint(fa)
     app.run(debug=True, host="0.0.0.0", port=2222)

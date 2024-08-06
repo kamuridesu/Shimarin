@@ -1,9 +1,6 @@
 import json
 
-import sys
-sys.path.insert(0, "/home/kamuri/Documents/Personal/shimarin")
-
-from Shimarin.plugins.flask_api import FlaskApp
+from Shimarin.plugins.flask_api import ShimaApp
 from Shimarin.server.events import Event, EventEmitter
 from Shimarin.server.exceptions import EventAnswerTimeoutError
 from Shimarin.plugins.middleware.sqlite_middleware import SQLitePersistenceMiddleware
@@ -35,7 +32,7 @@ async def test_route():
 
 
 if __name__ == "__main__":
-    emitter_app = FlaskApp(emitter)
-    app.register_blueprint(emitter_app.blueprint)
+    emitter_app = ShimaApp(emitter)
+    app.register_blueprint(emitter_app)
     app.run(debug=True, host="0.0.0.0", port=2222)
     app.run(debug=True, host="0.0.0.0", port=2222)

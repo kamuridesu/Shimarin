@@ -1,4 +1,4 @@
-from .server import login, CONTEXT_PATH, FlaskApp
+from .server import login, CONTEXT_PATH, ShimaApp
 
 
-__all__ = ["login", "CONTEXT_PATH", "FlaskApp"]
+__all__ = ["login", "CONTEXT_PATH", "ShimaApp"]
