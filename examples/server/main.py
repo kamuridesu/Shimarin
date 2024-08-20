@@ -1,12 +1,12 @@
 import json
 
+from flask import Flask, request
+
 from Shimarin.plugins.flask_api import ShimaApp
+from Shimarin.plugins.middleware.sqlite_middleware import \
+    SQLitePersistenceMiddleware
 from Shimarin.server.events import Event, EventEmitter
 from Shimarin.server.exceptions import EventAnswerTimeoutError
-from Shimarin.plugins.middleware.sqlite_middleware import SQLitePersistenceMiddleware
-
-from flask import request, Flask
-
 
 app = Flask("server")
 emitter = EventEmitter(persistence_middleware=SQLitePersistenceMiddleware("test.db"))
@@ -18,7 +18,9 @@ async def handle_test(params: dict = {}):
     await emitter.send(event)
     print("waiting for answer")
     try:
-        return (await emitter.get_answer(event.identifier, timeout = 60))  # 1 minute timeout
+        return await emitter.get_answer(
+            event.identifier, timeout=60
+        )  # 1 minute timeout
     except EventAnswerTimeoutError:
         return "fail"
 

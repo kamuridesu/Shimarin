@@ -2,9 +2,10 @@ import asyncio
 import inspect
 import uuid
 from datetime import datetime
-from typing import Callable, Any, Literal
+from typing import Any, Callable, Literal
 
-from .exceptions import CallbackIsLambdaError, UnknownStatusError
+from Shimarin.server.exceptions import (CallbackIsLambdaError,
+                                        UnknownStatusError)
 
 
 class Event:
@@ -20,7 +21,7 @@ class Event:
         self.answered = True if callback is None else False
         self.__answer = ""
         self.__creation_date = datetime.now()
-        self.__status: Literal['delivered', 'done', 'failed', 'waiting'] = "waiting"
+        self.__status: Literal["delivered", "done", "failed", "waiting"] = "waiting"
 
     @staticmethod
     def new(
@@ -35,20 +36,20 @@ class Event:
     @property
     def answer(self):
         return self.__answer
-    
+
     @answer.setter
     def answer(self, data):
         self.__answer = data
         self.answered = True
-        self.status = 'done'
-    
-    @property 
+        self.status = "done"
+
+    @property
     def status(self):
         return self.__status
-    
+
     @status.setter
-    def status(self, status_text: Literal['delivered', 'done', 'failed', 'waiting']):
-        if status_text not in ['delivered', 'done', 'failed', 'waiting']:
+    def status(self, status_text: Literal["delivered", "done", "failed", "waiting"]):
+        if status_text not in ["delivered", "done", "failed", "waiting"]:
             raise UnknownStatusError
         self.__status = status_text
 
@@ -57,7 +58,7 @@ class Event:
             "event_type": self.event_type,
             "payload": self.payload,
             "identifier": self.identifier,
-            "status": self.__status
+            "status": self.__status,
         }
 
     def __repr__(self):

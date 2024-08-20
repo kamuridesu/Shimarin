@@ -1,13 +1,12 @@
-import aiohttp
 import asyncio
 import json
 import logging
+from typing import Any, Callable
 
-from typing import Callable, Any
+import aiohttp
 
-from .config import config
-from .networking import send_get_request, Response
-
+from Shimarin.client.config import config
+from Shimarin.client.networking import Response, send_get_request
 
 logger = logging.getLogger("Shimarin")
 
