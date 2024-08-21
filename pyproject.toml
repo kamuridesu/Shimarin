@@ -1,3 +1,40 @@
+[project]
+name = "Shimarin"
+version = "0.2.3"
+description = "asynchronous event-based communication between client and server"
+readme = "README.md"
+keywords = ["python", "events", "client", "server", "asynchronous"]
+license = {text = "MIT License"}
+
+dependencies = [
+    "aiohttp == 3.9.5"
+]
+
+authors = [
+    {name = "Kamuri Amorim", email = "myk.gata14@gmail.com"}
+]
+
+maintainers = [
+    {name = "Kamuri Amorim", email = "myk.gata14@gmail.com"}
+]
+
+[project.urls]
+Homepage = "https://github.com/kamuridesu/Shimarin"
+Repository = "https://github.com/kamuridesu/Shimarin.git"
+Issues = "https://github.com/kamuridesu/Shimarin/issues"
+
+[project.optional-dependencies]
+    flask = ["Flask[async]==2.3.2"]
+
+[tool.hatch.build.targets.wheel]
+only-include = [
+    "Shimarin",
+    "Shimarin.client",
+    "Shimarin.server",
+    "Shimarin.plugins.flask_api",
+    "Shimarin.plugins.middleware",
+]
+
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
