@@ -77,7 +77,6 @@ class ShimaApp(Blueprint):
         r = self.login_callback()
         if r.ok is False:
             return r.as_response()
-        print(request.headers)
         identifier = request.headers.get("x-identifier")
         payload = request.stream if self.use_stream_response else request.get_data(cache=False)
         if identifier and payload:

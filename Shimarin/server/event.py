@@ -66,7 +66,6 @@ class Event[T]:
         return self.json().__str__()
 
     async def trigger(self, payload: CallbackArguments) -> T | None:
-        print(payload)
         self.answered = True
         if self.callback is None:
             return
