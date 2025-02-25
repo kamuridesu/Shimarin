@@ -22,7 +22,7 @@ class EventEmitter:
         start = datetime.now()
         ev: Event | None = None
         while True:
-            await asyncio.sleep(0)
+            await asyncio.sleep(0.1)
             if (datetime.now() - start).total_seconds() >= timeout:
                 if self.persistence_middleware and ev:
                     self.persistence_middleware.update_event_status(ev, "failed")
@@ -37,8 +37,6 @@ class EventEmitter:
                         ev = event
             if ev != None and ev.answered:
                 return ev.answer
-            if ev is None:
-                return default
 
     async def clean_old_items(self):
         for event in [x for x in self.events if x.status in ["done", "failed"]]:
