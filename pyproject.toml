@@ -1,6 +1,6 @@
 [project]
 name = "Shimarin"
-version = "0.2.3"
+version = "0.3.0"
 description = "asynchronous event-based communication between client and server"
 readme = "README.md"
 keywords = ["python", "events", "client", "server", "asynchronous"]

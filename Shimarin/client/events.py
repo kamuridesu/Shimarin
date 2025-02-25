@@ -1,12 +1,11 @@
 import asyncio
-import json
 import logging
 from typing import Any, Callable
 
 import aiohttp
 
 from Shimarin.client.config import config
-from Shimarin.client.networking import Response, send_get_request
+from Shimarin.client.networking import Response, send_get_request, send_post_request
 
 logger = logging.getLogger("Shimarin")
 
@@ -16,25 +15,27 @@ class Event:
         self,
         event_type: str,
         identifier: str,
-        payload: str | None,
+        payload: str | bytes | None,
         session: aiohttp.ClientSession,
         server_endpoint: str = config.SERVER_ENDPOINT,
-        custom_headers: dict = {},
+        custom_headers: dict | None = None,
     ) -> None:
         self.event_type = event_type
         self.payload = payload
         self.identifier = identifier
         self.__session = session
         self.server_endpoint = server_endpoint
-        self.custom_headers = custom_headers
+        self.custom_headers = custom_headers if custom_headers else {}
 
     @staticmethod
     def new(
         event_data: dict[str, str],
-        session: aiohttp.ClientSession | None,
+        session: aiohttp.ClientSession,
         server_endpoint: str = config.SERVER_ENDPOINT,
-        custom_headers: dict = {},
+        custom_headers: dict | None = None,
     ) -> "Event":
+        if custom_headers is None:
+            custom_headers = {}
         return Event(
             event_data["event_type"],
             event_data["identifier"],
@@ -45,11 +46,11 @@ class Event:
         )
 
     async def reply(self, payload: Any):
-        data = {"identifier": str(self.identifier), "payload": json.dumps(payload)}
-        await send_get_request(
+        self.custom_headers["x-identifier"] = self.identifier
+        await send_post_request(
             self.__session,
             f"{self.server_endpoint}/callback",
-            json=data,
+            data=payload,
             headers=self.custom_headers,
         )
 
@@ -119,44 +120,46 @@ class EventPolling:
 
     async def start(
         self,
-        polling_interval: int = 1,
+        polling_interval: int | float = 1,
         fetch: int = 10,
-        custom_headers: dict = {},
+        custom_headers: dict | None = None,
         server_endpoint: str = config.SERVER_ENDPOINT,
         retries: int = 5,
     ):
+        if custom_headers is None:
+            custom_headers = {}
         self.is_polling = True
         while self.is_polling:
-            for _ in range(retries):
-                try:
-                    events: Response = await send_get_request(
-                        self.session,
-                        f"{server_endpoint}/events?fetch={fetch}",
-                        headers=custom_headers,
-                    )
-
-                    if events.status == 200:
-                        event_json = await events.json()
-                        for event in event_json:
-                            if event_json:
-                                event = Event.new(
-                                    event, self.session, server_endpoint, custom_headers
-                                )
-                                await self.__task_manager(event)
-                        break
-                    raise aiohttp.ServerConnectionError
-                except (
-                    aiohttp.ClientError,
-                    aiohttp.ServerTimeoutError,
-                    aiohttp.ServerDisconnectedError,
-                    aiohttp.ServerConnectionError,
-                    aiohttp.ClientConnectionError,
-                ):
-                    logger.warning(
-                        f"Error connecting to {server_endpoint}! Retrying..."
-                    )
-                    await asyncio.sleep(1)
+            await self.retry_loop(retries, server_endpoint, fetch, custom_headers)
             await asyncio.sleep(polling_interval)
+
+    async def retry_loop(self, retries: int, endpoint: str, fetch: int, headers: dict):
+        fetch_endpoint = f"{endpoint}/events?fetch={fetch}"
+        for _ in range(retries):
+            try:
+                events: Response = await send_get_request(
+                    self.session,
+                    fetch_endpoint,
+                    headers=headers,
+                )
+
+                if events.status == 200:
+                    event_json = await events.json()
+                    for event in event_json:
+                        if event_json:
+                            event = Event.new(event, self.session, endpoint, headers)
+                            await self.__task_manager(event)
+                    break
+                raise aiohttp.ServerConnectionError
+            except (
+                aiohttp.ClientError,
+                aiohttp.ServerTimeoutError,
+                aiohttp.ServerDisconnectedError,
+                aiohttp.ServerConnectionError,
+                aiohttp.ClientConnectionError,
+            ):
+                logger.warning(f"Error connecting to {endpoint}! Retrying...")
+                await asyncio.sleep(1)
 
     async def __task_manager(self, event: Event):
         task = asyncio.create_task(self.events_handlers.handle(event))

@@ -1,11 +1,9 @@
 import json
 
 from flask import Flask, request
-
 from Shimarin.plugins.flask_api import ShimaApp
-from Shimarin.plugins.middleware.sqlite_middleware import \
-    SQLitePersistenceMiddleware
-from Shimarin.server.events import Event, EventEmitter
+from Shimarin.plugins.middleware.sqlite_middleware import SQLitePersistenceMiddleware
+from Shimarin.server.events import CallbackArguments, Event, EventEmitter
 from Shimarin.server.exceptions import EventAnswerTimeoutError
 
 app = Flask("server")
@@ -13,8 +11,13 @@ emitter = EventEmitter(persistence_middleware=SQLitePersistenceMiddleware("test.
 # emitter =EventEmitter()
 
 
+def callback(params: CallbackArguments):
+    if isinstance(params, bytes):
+        return json.dumps(params.decode())
+
+
 async def handle_test(params: dict = {}):
-    event = Event("update", json.dumps(params), json.loads)
+    event = Event("update", json.dumps(params), callback)
     await emitter.send(event)
     print("waiting for answer")
     try:
@@ -36,5 +39,4 @@ async def test_route():
 if __name__ == "__main__":
     emitter_app = ShimaApp(emitter)
     app.register_blueprint(emitter_app)
-    app.run(debug=True, host="0.0.0.0", port=2222)
     app.run(debug=True, host="0.0.0.0", port=2222)

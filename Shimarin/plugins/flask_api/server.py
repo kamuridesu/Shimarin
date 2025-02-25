@@ -45,18 +45,20 @@ class ShimaApp(Blueprint):
         self,
         emitter: events.EventEmitter,
         login_callback: Callable[[], LoginResponse] = login,
+        use_stream_response=False
     ):
         super().__init__("ShimaServer", __name__)
         self.login_callback = login_callback
         self.emitter = emitter
+        self.use_stream_response = use_stream_response
         self.add_url_rule(
-            CONTEXT_PATH + "/events", None, self.events_route, methods=["GET"]
+            CONTEXT_PATH + "/events", None, self.fetch, methods=["GET"]
         )
         self.add_url_rule(
-            CONTEXT_PATH + "/callback", None, self.reply_route, methods=["GET"]
+            CONTEXT_PATH + "/callback", None, self.callback, methods=["POST"]
         )
 
-    async def events_route(self):
+    async def fetch(self):
         r = self.login_callback()
         if r.ok is False:
             return r.as_response()
@@ -71,14 +73,14 @@ class ShimaApp(Blueprint):
                 events.append(last_ev.json())
         return events
 
-    async def reply_route(self):
+    async def callback(self):
         r = self.login_callback()
         if r.ok is False:
             return r.as_response()
-        data = request.get_json(silent=True)
-        if data:
-            identifier = data["identifier"]
-            payload = data["payload"]
+        print(request.headers)
+        identifier = request.headers.get("x-identifier")
+        payload = request.stream if self.use_stream_response else request.get_data(cache=False)
+        if identifier and payload:
             await self.emitter.handle(identifier, payload)
         return {"ok": True}
 

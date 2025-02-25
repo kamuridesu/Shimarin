@@ -13,7 +13,7 @@ lock = Lock()
 class SQLitePersistenceMiddleware(PersistenceMiddleware):
     def __init__(self, db: str):
         self.database = Path(db)
-        self.database.is_file() and self.database.parent.mkdir(
+        _ = self.database.is_file() and self.database.parent.mkdir(
             exist_ok=True, parents=True
         )
         self.setup()
@@ -49,11 +49,12 @@ class SQLitePersistenceMiddleware(PersistenceMiddleware):
         cursor.execute(query, ["waiting"])
         data = cursor.fetchone()
         cursor.close()
-        event = None
+        event: Event | None = None
         if data:
-            event: Event = pickle.loads(data[3])
-            event.status = "delivered"
-            self.update_event_status(event.identifier, "delivered", event)
+            event = pickle.loads(data[3])
+            if event:
+                event.status = "delivered"
+                self.update_event_status(event, "delivered")
         conn.close()
         return event
 
@@ -70,13 +71,12 @@ class SQLitePersistenceMiddleware(PersistenceMiddleware):
 
     def update_event_status(
         self,
-        identifier: str,
-        status: Literal["delivered", "done", "failed", "waiting"],
         ev: Event,
+        status: Literal["delivered", "done", "failed", "waiting"],
     ):
         query = "UPDATE events SET status = ?, data = ? WHERE identifier = ?"
         conn = sqlite3.connect(self.database)
-        conn.execute(query, [status, pickle.dumps(ev), identifier])
+        conn.execute(query, [status, pickle.dumps(ev), ev.identifier])
         conn.commit()
         conn.close()
 

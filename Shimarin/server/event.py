@@ -2,15 +2,16 @@ import asyncio
 import inspect
 import uuid
 from datetime import datetime
-from typing import Any, Callable, Literal
+from typing import IO, Callable, Literal
 
 from Shimarin.server.exceptions import (CallbackIsLambdaError,
                                         UnknownStatusError)
 
+type CallbackArguments = bytes | IO[bytes]
 
-class Event:
+class Event[T]:
     def __init__(
-        self, event_type: str, payload: str = None, callback: Callable | None = None
+        self, event_type: str, payload: str = "", callback: Callable[[CallbackArguments], T] | None = None
     ):
         if inspect.isfunction(callback) and callback.__name__ == "<lambda>":
             raise CallbackIsLambdaError
@@ -19,13 +20,13 @@ class Event:
         self.callback = callback
         self.identifier = str(uuid.uuid1())
         self.answered = True if callback is None else False
-        self.__answer = ""
+        self.__answer: T | None = None
         self.__creation_date = datetime.now()
         self.__status: Literal["delivered", "done", "failed", "waiting"] = "waiting"
 
     @staticmethod
     def new(
-        event_type: str, payload: str = None, callback: Callable | None = None
+        event_type: str, payload: str = "", callback: Callable | None = None
     ) -> "Event":
         return Event(event_type, payload, callback)
 
@@ -64,8 +65,11 @@ class Event:
     def __repr__(self):
         return self.json().__str__()
 
-    async def trigger(self, payload: Any):
+    async def trigger(self, payload: CallbackArguments) -> T | None:
+        print(payload)
         self.answered = True
+        if self.callback is None:
+            return
         if inspect.iscoroutinefunction(self.callback):
             self.answer = await self.callback(payload)
         else:

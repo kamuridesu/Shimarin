@@ -6,4 +6,4 @@ class Config:
         self.SERVER_ENDPOINT = server_endpoint
 
 
-config = Config(os.getenv("SERVER_ENDPOINT"))
+config = Config(os.getenv("SERVER_ENDPOINT", "localhost"))

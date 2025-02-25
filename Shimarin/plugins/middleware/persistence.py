@@ -8,29 +8,28 @@ class PersistenceMiddleware(ABC):
 
     @abstractmethod
     def register(self, ev: Event) -> None:
-        return NotImplemented
+        raise NotImplementedError
 
     @abstractmethod
     def fetch(self, last=False) -> Event:
-        return NotImplemented
+        raise NotImplementedError
 
     @abstractmethod
     def get(self, identifier: str) -> Event:
-        return NotImplemented
+        raise NotImplementedError
 
     @abstractmethod
     def update_event_status(
         self,
-        identifier: str,
-        status: Literal["delivered", "done", "failed", "waiting"],
         ev: Event,
+        status: Literal["delivered", "done", "failed", "waiting"],
     ):
-        return NotImplemented
+        raise NotImplementedError
 
     @abstractmethod
     def prune_finished(self, remove_failed=False) -> None:
-        return NotImplemented
+        raise NotImplementedError
 
     @abstractmethod
     def remove(self, event_id: str) -> None:
-        return NotImplemented
+        raise NotImplementedError
