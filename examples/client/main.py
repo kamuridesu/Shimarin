@@ -9,7 +9,7 @@ handlers = events.EventsHandlers()
 async def update(event: events.Event):
     print(event)
     print("replying to event")
-    return await event.reply("Yes")
+    return await event.reply("Yes", metadata={"name": "Hello World"})
 
 
 async def main():

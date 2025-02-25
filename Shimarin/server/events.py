@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime
 
 from Shimarin.plugins.middleware.persistence import PersistenceMiddleware
-from Shimarin.server.event import Event, CallbackArguments
+from Shimarin.server.event import CallbackMetadata, Event, CallbackArguments
 from Shimarin.server.exceptions import EventAnswerTimeoutError
 
 
@@ -71,12 +71,12 @@ class EventEmitter:
             return self.persistence_middleware.register(event)
         self.events.append(event)
 
-    async def handle(self, unique_identifier: str, payload: CallbackArguments):
+    async def handle(self, unique_identifier: str, payload: CallbackArguments, metadata: CallbackMetadata = None):
         await self.clean_old_items()
         if self.persistence_middleware is not None:
             ev = self.persistence_middleware.get(unique_identifier)
             if ev:
-                response = await ev.trigger(payload)
+                response = await ev.trigger(payload, metadata)
                 self.persistence_middleware.update_event_status(
                     ev, "done"
                 )
@@ -84,4 +84,4 @@ class EventEmitter:
         else:
             for event in self.events:
                 if event.identifier == unique_identifier:
-                    return await event.trigger(payload)
+                    return await event.trigger(payload, metadata)

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from typing import Any, Callable
 
@@ -45,8 +46,11 @@ class Event:
             custom_headers,
         )
 
-    async def reply(self, payload: Any):
+    async def reply(self, payload: Any, metadata: dict[str, str] | None = None):
+        if metadata is None:
+            metadata = {}
         self.custom_headers["x-identifier"] = self.identifier
+        self.custom_headers["X-Metadata"] = json.dumps(metadata)
         await send_post_request(
             self.__session,
             f"{self.server_endpoint}/callback",

@@ -8,10 +8,12 @@ from Shimarin.server.exceptions import (CallbackIsLambdaError,
                                         UnknownStatusError)
 
 type CallbackArguments = bytes | IO[bytes]
+type CallbackMetadata = dict[str, str] | None
+
 
 class Event[T]:
     def __init__(
-        self, event_type: str, payload: str = "", callback: Callable[[CallbackArguments], T] | None = None
+        self, event_type: str, payload: str = "", callback: Callable[[CallbackArguments, CallbackMetadata], T] | None = None
     ):
         if inspect.isfunction(callback) and callback.__name__ == "<lambda>":
             raise CallbackIsLambdaError
@@ -65,12 +67,12 @@ class Event[T]:
     def __repr__(self):
         return self.json().__str__()
 
-    async def trigger(self, payload: CallbackArguments) -> T | None:
+    async def trigger(self, payload: CallbackArguments, metadata: CallbackMetadata = None) -> T | None:
         self.answered = True
         if self.callback is None:
             return
         if inspect.iscoroutinefunction(self.callback):
-            self.answer = await self.callback(payload)
+            self.answer = await self.callback(payload, metadata)
         else:
-            self.answer = self.callback(payload)
+            self.answer = self.callback(payload, metadata)
         return self.answer

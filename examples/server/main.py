@@ -3,7 +3,7 @@ import json
 from flask import Flask, request
 from Shimarin.plugins.flask_api import ShimaApp
 from Shimarin.plugins.middleware.sqlite_middleware import SQLitePersistenceMiddleware
-from Shimarin.server.events import CallbackArguments, Event, EventEmitter
+from Shimarin.server.events import CallbackArguments, Event, EventEmitter, CallbackMetadata
 from Shimarin.server.exceptions import EventAnswerTimeoutError
 
 app = Flask("server")
@@ -11,7 +11,10 @@ emitter = EventEmitter(persistence_middleware=SQLitePersistenceMiddleware("test.
 # emitter =EventEmitter()
 
 
-def callback(params: CallbackArguments):
+def callback(params: CallbackArguments, metadata: CallbackMetadata):
+    print(metadata)
+    if metadata:
+        print("Name: " + metadata.get("name", ""))
     if isinstance(params, bytes):
         return json.dumps(params.decode())
 

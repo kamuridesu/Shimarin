@@ -1,3 +1,4 @@
+import json
 import os
 from dataclasses import dataclass
 from typing import Callable
@@ -78,9 +79,10 @@ class ShimaApp(Blueprint):
         if r.ok is False:
             return r.as_response()
         identifier = request.headers.get("x-identifier")
+        metadata = json.loads(request.headers.get("X-Metadata", ""))
         payload = request.stream if self.use_stream_response else request.get_data(cache=False)
         if identifier and payload:
-            await self.emitter.handle(identifier, payload)
+            await self.emitter.handle(identifier, payload, metadata)
         return {"ok": True}
 
 
