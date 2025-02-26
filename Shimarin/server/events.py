@@ -1,8 +1,9 @@
 import asyncio
 from datetime import datetime
+from typing import Any, cast
 
 from Shimarin.plugins.middleware.persistence import PersistenceMiddleware
-from Shimarin.server.event import CallbackMetadata, Event, CallbackArguments
+from Shimarin.server.event import CallbackArguments, CallbackMetadata, Event
 from Shimarin.server.exceptions import EventAnswerTimeoutError
 
 
@@ -12,15 +13,13 @@ class EventEmitter:
         max_age_seconds: float = 0,
         persistence_middleware: PersistenceMiddleware | None = None,
     ):
-        self.events: list[Event] = []
+        self.events: list[Event[Any]] = []
         self.max_age_seconds = max_age_seconds
         self.persistence_middleware = persistence_middleware
 
-    async def get_answer[T](
-        self, event_id: str, default: T | None = None, timeout=60
-    ) -> T | None:
+    async def get_answer(self, event_id: str, timeout=60):
         start = datetime.now()
-        ev: Event | None = None
+        ev: Event[Any] | None = None
         while True:
             await asyncio.sleep(0.1)
             if (datetime.now() - start).total_seconds() >= timeout:
@@ -30,13 +29,13 @@ class EventEmitter:
             if self.persistence_middleware is not None:
                 event = self.persistence_middleware.get(event_id)
                 if event:
-                    ev = event
+                    ev = cast(Event[Any], event)
             else:
                 for event in self.events:
                     if event.identifier == event_id:
-                        ev = event
+                        ev = cast(Event[Any], event)
             if ev != None and ev.answered:
-                return ev.answer
+                return cast(Any, ev.answer)
 
     async def clean_old_items(self):
         for event in [x for x in self.events if x.status in ["done", "failed"]]:
@@ -71,15 +70,18 @@ class EventEmitter:
             return self.persistence_middleware.register(event)
         self.events.append(event)
 
-    async def handle(self, unique_identifier: str, payload: CallbackArguments, metadata: CallbackMetadata = None):
+    async def handle(
+        self,
+        unique_identifier: str,
+        payload: CallbackArguments,
+        metadata: CallbackMetadata = None,
+    ):
         await self.clean_old_items()
         if self.persistence_middleware is not None:
             ev = self.persistence_middleware.get(unique_identifier)
             if ev:
                 response = await ev.trigger(payload, metadata)
-                self.persistence_middleware.update_event_status(
-                    ev, "done"
-                )
+                self.persistence_middleware.update_event_status(ev, "done")
                 return response
         else:
             for event in self.events:

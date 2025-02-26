@@ -26,6 +26,11 @@ pip install Shimarin
 of 
 pip install Shimarin[flask]
 ```
+
+# Known bugs
+
+- Return type for event trigger is Any because when fetching events it returns `Event[Unknown]` and I could not cast the return type of the callback function to the fetched event. You can always annotate the handler function to retuen the right type. Right now the return type for the Event is Any.
+
 <p align="center">
 <img src="https://count.kamuridesu.com?username=shimarin" alt="count"/>
 </p>

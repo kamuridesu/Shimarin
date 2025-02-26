@@ -1,17 +1,23 @@
 import json
+from typing import Literal
 
 from flask import Flask, request
+
 from Shimarin.plugins.flask_api import ShimaApp
 from Shimarin.plugins.middleware.sqlite_middleware import SQLitePersistenceMiddleware
-from Shimarin.server.events import CallbackArguments, Event, EventEmitter, CallbackMetadata
+from Shimarin.server.events import (
+    CallbackArguments,
+    CallbackMetadata,
+    Event,
+    EventEmitter,
+)
 from Shimarin.server.exceptions import EventAnswerTimeoutError
 
 app = Flask("server")
 emitter = EventEmitter(persistence_middleware=SQLitePersistenceMiddleware("test.db"))
-# emitter =EventEmitter()
 
 
-def callback(params: CallbackArguments, metadata: CallbackMetadata):
+def callback(params: CallbackArguments, metadata: CallbackMetadata) -> str | None:
     print(metadata)
     if metadata:
         print("Name: " + metadata.get("name", ""))
@@ -19,7 +25,7 @@ def callback(params: CallbackArguments, metadata: CallbackMetadata):
         return json.dumps(params.decode())
 
 
-async def handle_test(params: dict = {}):
+async def handle_test(params: dict = {}) -> str | Literal["fail"]:
     event = Event("update", json.dumps(params), callback)
     await emitter.send(event)
     print("waiting for answer")
@@ -36,7 +42,7 @@ async def test_route():
     args = request.get_json(force=True, silent=True)
     if args is None:
         args = {}
-    return await handle_test(args)
+    return await handle_test(args), 200
 
 
 if __name__ == "__main__":

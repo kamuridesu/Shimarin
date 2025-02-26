@@ -6,10 +6,11 @@ class EventAnswerTimeoutError(TimeoutError):
 
 
 class CallbackIsLambdaError(AssertionError):
-    def __init__(self,
-                 message: str = "Callback cannot be lambda function, lambda function cannot be pickled: \n"
-                 + "https://docs.python.org/3/library/pickle.html#what-can-be-pickled-and-unpickled"
-        ) -> None:
+    def __init__(
+        self,
+        message: str = "Callback cannot be lambda function, lambda function cannot be pickled: \n"
+        + "https://docs.python.org/3/library/pickle.html#what-can-be-pickled-and-unpickled",
+    ) -> None:
         super().__init__(message)
 
 

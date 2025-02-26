@@ -1,11 +1,12 @@
-import asyncio
 import inspect
 import uuid
 from datetime import datetime
 from typing import IO, Callable, Literal
 
-from Shimarin.server.exceptions import (CallbackIsLambdaError,
-                                        UnknownStatusError)
+from Shimarin.server.exceptions import (
+    CallbackIsLambdaError,
+    UnknownStatusError,
+)
 
 type CallbackArguments = bytes | IO[bytes]
 type CallbackMetadata = dict[str, str] | None
@@ -13,7 +14,10 @@ type CallbackMetadata = dict[str, str] | None
 
 class Event[T]:
     def __init__(
-        self, event_type: str, payload: str = "", callback: Callable[[CallbackArguments, CallbackMetadata], T] | None = None
+        self,
+        event_type: str,
+        payload: str = "",
+        callback: Callable[[CallbackArguments, CallbackMetadata], T] | None = None,
     ):
         if inspect.isfunction(callback) and callback.__name__ == "<lambda>":
             raise CallbackIsLambdaError
@@ -28,7 +32,7 @@ class Event[T]:
 
     @staticmethod
     def new(
-        event_type: str, payload: str = "", callback: Callable | None = None
+        event_type: str, payload: str = "", callback: Callable[[CallbackArguments, CallbackMetadata], T] | None = None
     ) -> "Event":
         return Event(event_type, payload, callback)
 
@@ -37,7 +41,7 @@ class Event[T]:
         return (datetime.now() - self.__creation_date).total_seconds()
 
     @property
-    def answer(self):
+    def answer(self) -> T | None:
         return self.__answer
 
     @answer.setter
@@ -67,7 +71,9 @@ class Event[T]:
     def __repr__(self):
         return self.json().__str__()
 
-    async def trigger(self, payload: CallbackArguments, metadata: CallbackMetadata = None) -> T | None:
+    async def trigger(
+        self, payload: CallbackArguments, metadata: CallbackMetadata = None
+    ) -> T | None:
         self.answered = True
         if self.callback is None:
             return
