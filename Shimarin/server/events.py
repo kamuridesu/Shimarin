@@ -16,6 +16,7 @@ class EventEmitter:
         self.events: list[Event[Any]] = []
         self.max_age_seconds = max_age_seconds
         self.persistence_middleware = persistence_middleware
+        self.cleanup_task: asyncio.Task = asyncio.create_task(self.clean_old_items())
 
     async def get_answer(self, event_id: str, timeout=60):
         start = datetime.now()
@@ -23,8 +24,10 @@ class EventEmitter:
         while True:
             await asyncio.sleep(0.1)
             if (datetime.now() - start).total_seconds() >= timeout:
-                if self.persistence_middleware and ev:
-                    self.persistence_middleware.update_event_status(ev, "failed")
+                if ev:
+                    ev.status = "failed"
+                    if self.persistence_middleware:
+                        self.persistence_middleware.update_event_status(ev, "failed")
                 raise EventAnswerTimeoutError
             if self.persistence_middleware is not None:
                 event = self.persistence_middleware.get(event_id)
@@ -38,18 +41,20 @@ class EventEmitter:
                 return cast(Any, ev.answer)
 
     async def clean_old_items(self):
-        for event in [x for x in self.events if x.status in ["done", "failed"]]:
-            if (
-                (event.age >= self.max_age_seconds)
-                if (self.max_age_seconds > 0)
-                else False
-            ):
-                self.events.remove(event)
-        if self.persistence_middleware:
-            self.persistence_middleware.prune_finished()
+        while True:
+            for event in [x for x in self.events if x.status in ["done", "failed"]]:
+                is_failed_event = event.status == "failed" or (
+                    (event.age >= self.max_age_seconds)
+                    if self.max_age_seconds
+                    else False
+                )
+                if is_failed_event:
+                    self.events.remove(event)
+            if self.persistence_middleware:
+                self.persistence_middleware.prune_finished()
+            await asyncio.sleep(1)
 
     async def fetch_event(self, last: bool = True) -> Event | None:
-        await self.clean_old_items()
         item: Event | None = None
         try:
             if self.persistence_middleware is not None:
@@ -65,7 +70,6 @@ class EventEmitter:
             return item
 
     async def send(self, event: Event) -> None:
-        await self.clean_old_items()
         if self.persistence_middleware is not None:
             return self.persistence_middleware.register(event)
         self.events.append(event)
@@ -76,7 +80,6 @@ class EventEmitter:
         payload: CallbackArguments,
         metadata: CallbackMetadata = None,
     ):
-        await self.clean_old_items()
         if self.persistence_middleware is not None:
             ev = self.persistence_middleware.get(unique_identifier)
             if ev:
