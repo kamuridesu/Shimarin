@@ -16,7 +16,9 @@ class EventEmitter:
         self.events: list[Event[Any]] = []
         self.max_age_seconds = max_age_seconds
         self.persistence_middleware = persistence_middleware
-        self.cleanup_task: asyncio.Task = asyncio.create_task(self.clean_old_items())
+        self.cleanup_task: asyncio.Task | None = asyncio.get_event_loop().create_task(
+            self.clean_old_items()
+        )
 
     async def get_answer(self, event_id: str, timeout=60):
         start = datetime.now()
